@@ -1,4 +1,4 @@
-package com.pirasisl.android.myexpense;
+package com.pirasisl.android.myshopping;
 
 import android.app.ActionBar;
 import android.app.Activity;
