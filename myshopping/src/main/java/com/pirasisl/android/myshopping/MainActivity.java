@@ -70,11 +70,7 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		int id = item.getItemId();
-		if (id == R.id.action_settings) {
-			return true;
-		}
-		return super.onOptionsItemSelected(item);
+		return item.getItemId() == R.id.action_settings || super.onOptionsItemSelected(item);
 	}
 
 	public static class PlaceholderFragment extends Fragment {
@@ -93,8 +89,7 @@ public class MainActivity extends Activity implements NavigationDrawerFragment.N
 
 		@Override
 		public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-			View rootView = inflater.inflate(R.layout.fragment_main, container, false);
-			return rootView;
+			return inflater.inflate(R.layout.fragment_main, container, false);
 		}
 
 		@Override
