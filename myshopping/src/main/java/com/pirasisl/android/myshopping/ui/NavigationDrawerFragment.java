@@ -1,13 +1,15 @@
-package com.pirasisl.android.myshopping;
+package com.pirasisl.android.myshopping.ui;
 
 import android.app.ActionBar;
 import android.app.Activity;
 import android.app.Fragment;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.support.v4.app.ActionBarDrawerToggle;
+import android.support.v4.app.NavUtils;
 import android.support.v4.widget.DrawerLayout;
 import android.util.Log;
 import android.view.Gravity;
@@ -22,13 +24,17 @@ import android.widget.ArrayAdapter;
 import android.widget.ListView;
 import android.widget.Toast;
 
+import com.pirasisl.android.myshopping.R;
+
 public class NavigationDrawerFragment extends Fragment {
 
 	private static final String STATE_SELECTED_POSITION = "selected_navigation_drawer_position";
 
 	private static final String PREF_USER_LEARNED_DRAWER = "navigation_drawer_learned";
 
-	private NavigationDrawerCallbacks mCallbacks;
+	private static String[] navItemNames;
+	private static Class[] navItemActivities;
+	private static boolean firstRun = true;
 
 	private ActionBarDrawerToggle mDrawerToggle;
 
@@ -36,7 +42,7 @@ public class NavigationDrawerFragment extends Fragment {
 	private ListView mDrawerListView;
 	private View mFragmentContainerView;
 
-	private int mCurrentSelectedPosition = 0;
+	private int mCurrentSelectedPosition = -1;
 	private boolean mFromSavedInstanceState;
 	private boolean mUserLearnedDrawer;
 
@@ -47,16 +53,31 @@ public class NavigationDrawerFragment extends Fragment {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
+		if (firstRun) {
+			firstRun = false;
+			navItemNames = new String[]{
+				getString(R.string.title_section_home),
+				getString(R.string.title_section_shopping_list),
+				getString(R.string.title_section_shopping_cart),
+				getString(R.string.title_section_shopping_history),
+				getString(R.string.title_section_category_manager),
+			};
+
+			navItemActivities = new Class[] {
+				HomeActivity.class,
+				ShoppingListActivity.class,
+			};
+		}
+
 		SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(getActivity());
 		mUserLearnedDrawer = sp.getBoolean(PREF_USER_LEARNED_DRAWER, false);
-		Log.d("nav drawer", "user learned: " + mUserLearnedDrawer);
 
 		if (savedInstanceState != null) {
 			mCurrentSelectedPosition = savedInstanceState.getInt(STATE_SELECTED_POSITION);
 			mFromSavedInstanceState = true;
 		}
 
-		selectItem(mCurrentSelectedPosition);
+		selectItemByActivity();
 	}
 
 	@Override
@@ -71,20 +92,24 @@ public class NavigationDrawerFragment extends Fragment {
 		mDrawerListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
 			@Override
 			public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-				selectItem(position);
+				if (mDrawerLayout != null) {
+					mDrawerLayout.closeDrawer(mFragmentContainerView);
+				}
+				navigateToNewActivity(position);
+				if (mCurrentSelectedPosition != -1 && mCurrentSelectedPosition < navItemNames.length) {
+					mDrawerListView.setItemChecked(mCurrentSelectedPosition, true);
+				}
 			}
 		});
 		mDrawerListView.setAdapter(new ArrayAdapter<String>(
 				getActionBar().getThemedContext(),
 				android.R.layout.simple_list_item_activated_1,
 				android.R.id.text1,
-				new String[]{
-						getString(R.string.title_section1),
-						getString(R.string.title_section2),
-						getString(R.string.title_section3),
-				}
+				navItemNames
 		));
-		mDrawerListView.setItemChecked(mCurrentSelectedPosition, true);
+		if (mCurrentSelectedPosition != -1 && mCurrentSelectedPosition < navItemNames.length) {
+			mDrawerListView.setItemChecked(mCurrentSelectedPosition, true);
+		}
 		return mDrawerListView;
 	}
 
@@ -140,33 +165,25 @@ public class NavigationDrawerFragment extends Fragment {
 		mDrawerLayout.setDrawerListener(mDrawerToggle);
 	}
 
-	private void selectItem(int position) {
-		mCurrentSelectedPosition = position;
-		if (mDrawerListView != null) {
-			mDrawerListView.setItemChecked(position, true);
-		}
-		if (mDrawerLayout != null) {
-			mDrawerLayout.closeDrawer(mFragmentContainerView);
-		}
-		if (mCallbacks != null) {
-			mCallbacks.onNavigationDrawerItemSelected(position);
+	private void selectItemByActivity() {
+		Activity activity = getActivity();
+		for (int i = 0; i < navItemActivities.length; i++) {
+			if (activity.getClass() == navItemActivities[i]) {
+				mCurrentSelectedPosition = i;
+				break;
+			}
 		}
 	}
 
-	@Override
-	public void onAttach(Activity activity) {
-		super.onAttach(activity);
-		try {
-			mCallbacks = (NavigationDrawerCallbacks) activity;
-		} catch (ClassCastException e) {
-			throw new ClassCastException("Activity must implement NavigationDrawerCallbacks.");
+	private void navigateToNewActivity(int position) {
+		if (position == mCurrentSelectedPosition || position >= navItemActivities.length) {
+			return;
 		}
-	}
-
-	@Override
-	public void onDetach() {
-		super.onDetach();
-		mCallbacks = null;
+		Intent intent = new Intent(getActivity(), navItemActivities[position]);
+		if (position == 0) {
+			intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+		}
+		getActivity().startActivity(intent);
 	}
 
 	@Override
@@ -195,30 +212,17 @@ public class NavigationDrawerFragment extends Fragment {
 		if (mDrawerToggle.onOptionsItemSelected(item)) {
 			return true;
 		}
-		if (item.getItemId() == R.id.action_example) {
-			Toast.makeText(getActivity(), "Example action.", Toast.LENGTH_SHORT).show();
-			return true;
-		}
 
 		return super.onOptionsItemSelected(item);
 	}
 
-	/**
-	 * Per the navigation drawer design guidelines, updates the action bar to show the global app
-	 * 'context', rather than just what's in the current screen.
-	 */
 	private void showGlobalContextActionBar() {
 		ActionBar actionBar = getActionBar();
 		actionBar.setDisplayShowTitleEnabled(true);
 		actionBar.setNavigationMode(ActionBar.NAVIGATION_MODE_STANDARD);
-		actionBar.setTitle(R.string.app_name);
 	}
 
 	private ActionBar getActionBar() {
 		return getActivity().getActionBar();
-	}
-
-	public static interface NavigationDrawerCallbacks {
-		void onNavigationDrawerItemSelected(int position);
 	}
 }
